@@ -1,146 +1,189 @@
-// ElForsa Bot - Genişletilmiş Komutlar ve Sistemler
-const { Client, GatewayIntentBits, Partials, Collection, EmbedBuilder, PermissionsBitField } = require("discord.js");
-const noblox = require("noblox.js");
-const fs = require("fs");
-const path = require("path");
-
+{
+  "name": "elforsa-discord-bot",
+  "version": "1.0.0",
+  "description": "ElForsa Discord botu",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "discord.js": "^14.13.0",
+    "dotenv": "^16.3.1"
+  }
+}
+require('dotenv').config();
+const { Client, GatewayIntentBits, Partials, EmbedBuilder } = require('discord.js');
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.GuildMembers,
-    GatewayIntentBits.MessageContent
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMembers
   ],
-  partials: [Partials.Message, Partials.Channel, Partials.Reaction]
+  partials: [Partials.Message, Partials.Channel, Partials.GuildMember]
 });
 
-client.commands = new Collection();
 const prefix = "!";
-const adminID = "<@YOUR_USER_ID>"; // örn: @forsdeving
+const ownerID = "YOUR_ID"; // uyarı logları sana DM olarak gitmesi için
 
-const warningData = new Map(); // Kullanıcı uyarı kayıtları için
+let warningData = {};
+let izinListesi = [];
+let devriyeListesi = [];
 
-// === BOT MESAJ KOMUTLARI ===
-client.on("messageCreate", async (message) => {
-  if (message.author.bot) return;
+client.on('ready', () => {
+  console.log(`${client.user.tag} çalışıyor.`);
+});
 
-  const args = message.content.slice(prefix.length).trim().split(/ +/);
+// Küfür, medya kontrol
+client.on("messageCreate", async (msg) => {
+  if (msg.author.bot) return;
+
+  const argo = ["amk", "siktir", "orospu", "aq", "anan", "yarrak", "sik"];
+  const küfürlü = argo.some(k => msg.content.toLowerCase().includes(k));
+  const medya = msg.attachments.size > 0;
+
+  if (küfürlü || medya) {
+    await msg.delete();
+    const member = msg.member;
+    const reason = küfürlü ? "Küfür" : "Medya";
+
+    warningData[member.id] = (warningData[member.id] || 0) + 1;
+    const uyarilar = warningData[member.id];
+
+    const dm = await client.users.fetch(ownerID);
+    dm.send(`🚨 **Uyarı:** ${member.user.tag} - Sebep: ${reason} - Toplam uyarı: ${uyarilar}`);
+
+    msg.channel.send(`${member} mesajın silindi. Sebep: ${reason}`);
+  }
+});
+
+// Komutlar
+client.on('messageCreate', async (message) => {
+  if (!message.content.startsWith(prefix) || message.author.bot) return;
+
+  const args = message.content.slice(prefix.length).trim().split(" ");
   const command = args.shift().toLowerCase();
 
-  // === SELAM KOMUTU ===
-  if (message.content.toLowerCase() === "sa") {
-    return message.reply("Aleyküm selam canım");
+  // !sa
+  if (command === "sa") {
+    return message.channel.send("Aleyküm selam canım");
   }
 
-  // === !format ===
-  if (command === "format") {
-    const embed = new EmbedBuilder()
-      .setTitle("Başvuru Formatı")
-      .setDescription(`**Roblox ismim:**\n**Çalıştığım kamplar:**\n**Çalıştığın kampların kişi sayıları:**\n**Kaç saat aktif olurum:**\n**Niçin burayı seçtim:**\n**Düşündüğüm rütbe:**\n**Transfer olunca katıldığım bütün kamplardan çıkacağımı kabul ediyor muyum:**\n**Ss:**\n**tag:** <@&1393136901552345095>`)
-      .setColor("Blue");
-    message.channel.send({ embeds: [embed] });
-  }
-
-  // === !rütbever ===
-  if (command === "rütbever") {
-    const member = message.mentions.users.first();
-    const rank = args.slice(1).join(" ");
-    if (!member || !rank) return message.reply("Kullanıcıyı ve rütbeyi belirt.");
-    message.reply(`✔️ ${member} kişisinin Roblox rütbesi \\`${rank}\\` olarak ayarlandı.`);
-    // Buraya noblox kodu eklenebilir
-  }
-
-  // === !rolver ===
-  if (command === "rolver") {
-    const member = message.mentions.members.first();
-    const roles = message.mentions.roles;
-    if (!member || roles.size === 0) return message.reply("Kullanıcı ve en az bir rol belirt.");
-    roles.forEach(role => member.roles.add(role));
-    message.reply(`${member} kullanıcısına roller verildi.`);
-  }
-
-  // === !tamyasakla ===
-  if (command === "tamyasakla") {
-    const member = message.mentions.members.first();
-    const reason = args.slice(1).join(" ") || "Sebep belirtilmedi";
-    if (!member) return message.reply("Bir kullanıcı belirt.");
-    await member.ban({ reason });
-    message.reply(`${member} sunucudan yasaklandı. Sebep: ${reason}`);
-    member.send(`**Sunucudan yasaklandın. Sebep:** ${reason}`).catch(() => {});
-  }
-
-  // === !mute ===
+  // !mute @kişi
   if (command === "mute") {
     const member = message.mentions.members.first();
-    const time = args[1];
     const muteRole = message.guild.roles.cache.find(r => r.name === "Muted");
-    if (!member || !muteRole) return message.reply("Kullanıcıyı ya da mute rolünü bulamadım.");
-
-    await member.roles.add(muteRole);
-    message.reply(`${member} susturuldu.`);
-
-    if (time) {
-      const [saat, dakika] = time.split(":").map(Number);
-      const ms = (saat * 60 + dakika) * 60 * 1000;
-      setTimeout(() => member.roles.remove(muteRole), ms);
-    }
+    if (!member || !muteRole) return message.reply("Hedef kullanıcı veya Muted rolü yok.");
+    member.roles.add(muteRole);
+    return message.channel.send(`${member} susturuldu.`);
   }
 
-  // === !unmute ===
+  // !unmute @kişi
   if (command === "unmute") {
     const member = message.mentions.members.first();
     const muteRole = message.guild.roles.cache.find(r => r.name === "Muted");
-    if (!member || !muteRole) return message.reply("Kullanıcıyı ya da mute rolünü bulamadım.");
-    await member.roles.remove(muteRole);
-    message.reply(`${member} susturması kaldırıldı.`);
+    if (!member || !muteRole) return message.reply("Hedef kullanıcı veya Muted rolü yok.");
+    member.roles.remove(muteRole);
+    return message.channel.send(`${member} susturulması kaldırıldı.`);
   }
 
-  // === !uyari ===
-  if (command === "uyari") {
+  // !rütbever @kişi RÜTBE
+  if (command === "rütbever") {
+    if (!message.member.roles.cache.some(r => r.name === "@+")) return;
     const member = message.mentions.members.first();
-    const reason = args.slice(1).join(" ");
-    if (!member || !reason) return message.reply("Kullanıcı ve sebep belirt.");
+    const rütbe = args.slice(1).join(" ");
+    if (!member || !rütbe) return message.reply("Kullanıcı veya rütbe eksik.");
 
-    let uyarilar = warningData.get(member.id) || 0;
-    uyarilar++;
-    warningData.set(member.id, uyarilar);
-
-    if (uyarilar === 1) member.roles.add(message.guild.roles.cache.find(r => r.name === "U1"));
-    if (uyarilar === 2) {
-      member.roles.add(message.guild.roles.cache.find(r => r.name === "U2"));
-      const muteRole = message.guild.roles.cache.find(r => r.name === "Muted");
-      member.roles.add(muteRole);
-      setTimeout(() => member.roles.remove(muteRole), 60 * 60 * 1000);
-    }
-    if (uyarilar === 3) {
-      member.roles.add(message.guild.roles.cache.find(r => r.name === "U3"));
-      const muteRole = message.guild.roles.cache.find(r => r.name === "Muted");
-      member.roles.add(muteRole);
-      setTimeout(() => member.roles.remove(muteRole), 24 * 60 * 60 * 1000);
-    }
-    if (uyarilar >= 4) {
-      member.roles.add(message.guild.roles.cache.find(r => r.name === "U4"));
-      member.ban({ reason: "4. uyarıya ulaştı." });
-    }
-
-    message.reply(`${member} kullanıcısı uyarıldı. Sebep: ${reason}`);
+    // Burada Roblox API ile rütbe verilecektir. (Simülasyon)
+    return message.reply(`✅ ${member} kişisinin Roblox rütbesi \`${rütbe}\` olarak ayarlandı.`);
   }
 
-  // === !sicil ===
+  // !tamyasakla @kişi
+  if (command === "tamyasakla") {
+    const member = message.mentions.members.first();
+    if (!member) return message.reply("Birini etiketle!");
+    message.guild.members.ban(member.id, { reason: "Tamyasaklandı" });
+    return message.channel.send(`${member.user.tag} sunucudan tamamen yasaklandı.`);
+  }
+
+  // !çekiliş süre ödül
+  if (command === "çekiliş") {
+    const süre = parseInt(args[0]) * 1000;
+    const ödül = args.slice(1).join(" ");
+    const embed = new EmbedBuilder()
+      .setTitle("🎉 ÇEKİLİŞ BAŞLADI 🎉")
+      .setDescription(`Ödül: **${ödül}**\nSüre: ${args[0]} saniye\nKatılmak için 🎉 tepkisi verin!`)
+      .setColor("Blue");
+
+    const msg = await message.channel.send({ embeds: [embed] });
+    await msg.react("🎉");
+
+    setTimeout(async () => {
+      const cache = await msg.reactions.cache.get("🎉").users.fetch();
+      const katilanlar = cache.filter(u => !u.bot).map(u => u);
+      if (katilanlar.length === 0) return message.channel.send("Yeterli katılım olmadı.");
+      const kazanan = katilanlar[Math.floor(Math.random() * katilanlar.length)];
+      message.channel.send(`🎉 Tebrikler ${kazanan}, **${ödül}** kazandın!`);
+    }, süre);
+  }
+
+  // !izin @kişi sebep
+  if (command === "izin") {
+    const member = message.mentions.members.first();
+    const reason = args.slice(1).join(" ") || "Sebep yok";
+    if (!member) return message.reply("Birini etiketle!");
+    izinListesi.push({ user: member.user.tag, reason });
+    return message.channel.send(`${member.user.tag} izne ayrıldı. Sebep: ${reason}`);
+  }
+
+  // !devriye @kişi bölge
+  if (command === "devriye") {
+    const member = message.mentions.members.first();
+    const bölge = args.slice(1).join(" ") || "belirtilmedi";
+    if (!member) return message.reply("Birini etiketle!");
+    devriyeListesi.push({ user: member.user.tag, bölge });
+    return message.channel.send(`${member.user.tag} devriyeye çıktı. Bölge: ${bölge}`);
+  }
+
+  // !format
+  if (command === "format") {
+    const embed = new EmbedBuilder()
+      .setTitle("ElForsa Bot Formatı")
+      .setDescription(`**📌 Başvuru formatını aşağıya yazınız:**\n- Roblox grubunda rütbe verilir\n- İsim:\n- Yaş:\n- Neden katılmak istiyorsun:`)
+      .setColor("Green");
+    return message.channel.send({ embeds: [embed] });
+  }
+
+  // !sicil @kişi
   if (command === "sicil") {
     const member = message.mentions.members.first();
-    const uyarilar = warningData.get(member.id) || 0;
-    message.reply(`${member} kullanıcısının toplam ${uyarilar} uyarısı var.`);
+    if (!member) return message.reply("Birini etiketle!");
+    const uyarilar = warningData[member.id] || 0;
+    return message.reply(`${member} kullanıcısının toplam ${uyarilar} uyarısı var.`);
   }
 
-  // === !komutlar ===
+  // !komutlar
   if (command === "komutlar") {
     const embed = new EmbedBuilder()
-      .setTitle("ElForsa BOT Komutlar")
-      .setColor("Green")
-      .setDescription(`**!format**: Başvuru formatını atar\n**!rütbever**: Roblox grubunda rütbe verir\n**!rolver**: Kullanıcıya 1-5 rol verir\n**!tamyasakla**: Sunucudan banlar\n**!mute**: Kullanıcıyı susturur\n**!unmute**: Mute kaldırır\n**!uyari**: Uyarı sistemi\n**!sicil**: Uyarı bilgisi\n**!komutlar**: Komut listesini gösterir`);
+      .setTitle("🛠️ ElForsa Tüm Komutlar")
+      .setColor("Gold")
+      .setDescription(`
+\`!sa\` - Selam ver
+\`!mute @kişi\` - Sustur
+\`!unmute @kişi\` - Susturmayı kaldır
+\`!rütbever @kişi RÜTBE\` - Roblox rütbe ver
+\`!tamyasakla @kişi\` - Tümden banla
+\`!çekiliş 10 Ödül\` - Çekiliş başlat (saniye cinsinden)
+\`!izin @kişi Sebep\` - İzin verir
+\`!devriye @kişi Bölge\` - Devriyeye yollar
+\`!format\` - Başvuru formatını atar
+\`!sicil @kişi\` - Kişinin uyarı sayısını gösterir
+      `);
     message.channel.send({ embeds: [embed] });
   }
 });
 
-client.login(process.env.TOKEN);
+client.login(process.env.DISCORD_TOKEN);
