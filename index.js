@@ -46,7 +46,7 @@ client.on("messageCreate", async (message) => {
     const member = message.mentions.users.first();
     const rank = args.slice(1).join(" ");
     if (!member || !rank) return message.reply("Kullanıcıyı ve rütbeyi belirt.");
-    message.reply(`✔️ ${member} kişisinin Roblox rütbesi \\`${rank}\` olarak ayarlandı.`);
+    message.reply(`✔️ ${member} kişisinin Roblox rütbesi \`${rank}\` olarak ayarlandı.`);
     // Buraya noblox kodu eklenebilir
   }
 
