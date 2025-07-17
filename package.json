@@ -14,4 +14,7 @@
     "dotenv": "^16.3.1",
     "noblox.js": "^4.14.1"
   }
+  "engines": {
+  "node": "16.x"
+}
 }
