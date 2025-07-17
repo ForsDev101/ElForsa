@@ -343,98 +343,20 @@ client.on('messageCreate', async message => {
       break;
 
       case "rütbever":
-            const noblox = require("noblox.js");
+            if (!isUserYonetim) return message.reply("Bu komutu sadece Yönetim kullanabilir.");
+            {
+              const hedef = message.mentions.members.first();
+              if (!hedef) return message.reply("Bir kullanıcıyı etiketlemelisin.");
+              const rolAdi = args.slice(1).join(" ");
+              if (!rolAdi) return message.reply("Verilecek rol tam adını yazmalısın.");
 
-            if (command === "rütbever") {
-              if (!message.member.roles.cache.some(r => r.name === "Yönetim")) {
-                return message.reply("Bu komutu sadece `Yönetim` rolüne sahip olanlar kullanabilir.");
-              }
-
-              const member = message.mentions.members.first();
-              const robloxUsername = args[1];
-              const rankName = args.slice(2).join(" ");
-
-              if (!member || !robloxUsername || !rankName) {
-                return message.reply("❌ Doğru kullanım: `!rütbever @kişi RobloxKullanıcıAdı RütbeAdı`");
-              }
-
-              const groupId = process.env.GROUP_ID;
-              const robloxCookie = process.env.ROBLOX_COOKIE;
-
-              if (!groupId || !robloxCookie) {
-                return message.reply("❌ .env dosyanda GROUP_ID veya ROBLOX_COOKIE eksik!");
-              }
-
-              try {
-                // Roblox'a tek seferlik giriş
-                if (!client.robloxLoggedIn) {
-                  await noblox.setCookie(robloxCookie);
-                  client.robloxLoggedIn = true;
-                  console.log("✅ Roblox bot giriş yaptı.");
-                }
-
-                const userId = await noblox.getIdFromUsername(robloxUsername);
-                const roles = await noblox.getRolesInGroup(Number(groupId));
-                const desiredRank = roles.find(role => role.name.toLowerCase() === rankName.toLowerCase());
-
-                if (!desiredRank) {
-                  return message.reply(`❌ "${rankName}" adında bir rütbe grupta bulunamadı.`);
-                }
-
-                await noblox.setRank(Number(groupId), userId, desiredRank.rank);
-
-                message.channel.send(`✅ ${member} kişisine **${robloxUsername}** adıyla **${desiredRank.name}** rütbesi verildi.`);
-
-                try {
-                  await member.send(`📢 Roblox grubunda **${desiredRank.name}** rütbesine yükseltildin.`);
-                } catch {
-                  message.channel.send("⚠️ Kullanıcının DM'leri kapalı olabilir.");
-                }
-
-              } catch (err) {
-                console.error("❌ Rütbe verme hatası:", err);
-                return message.reply("🚫 Rütbe verilemedi. Roblox ismini ve rütbeyi kontrol et.");
-              }
+              // Burada Roblox API veya cookie ile rütbe verme işlemi yapılmalı.
+              // Roblox API entegrasyonu, özel token ve cookie ile yapılır. 
+              // Bu örnekte sadece mesaj olarak bildiriyoruz.
+              message.channel.send(`${hedef.user.tag} kullanıcısına Roblox grubunda '${rolAdi}' rütbesi verildi (simüle).`);
             }
             break;
-      const noblox = require('noblox.js');
 
-      if (command === "rütbelistesi") {
-        const groupId = process.env.GROUP_ID;
-        const robloxCookie = process.env.ROBLOX_COOKIE;
-
-        if (!groupId || !robloxCookie) {
-          return message.reply("❌ .env dosyanda `GROUP_ID` veya `ROBLOX_COOKIE` eksik!");
-        }
-
-        try {
-          if (!client.robloxLoggedIn) {
-            await noblox.setCookie(robloxCookie);
-            client.robloxLoggedIn = true;
-            console.log("✅ Roblox oturumu başlatıldı.");
-          }
-
-          const roles = await noblox.getRolesInGroup(Number(groupId));
-          const listed = roles
-            .filter(r => r.rank > 0) // misafir rolünü atla
-            .map(r => `• **${r.name}** — Rank ID: \`${r.rank}\``)
-            .join("\n");
-
-          const { EmbedBuilder } = require("discord.js");
-
-          const embed = new EmbedBuilder()
-            .setTitle("📋 Roblox Grup Rütbeleri")
-            .setDescription(listed)
-            .setColor("Blue")
-            .setFooter({ text: `Grup ID: ${groupId}` });
-
-          message.channel.send({ embeds: [embed] });
-
-        } catch (err) {
-          console.error("Rütbe listesi hatası:", err);
-          message.reply("🚫 Rütbe listesi alınamadı. Cookie ve Group ID'yi kontrol et.");
-        }
-      }
           case "rolver":
             if (!isUserYonetim) return message.reply("Bu komutu sadece Yönetim kullanabilir.");
             {
