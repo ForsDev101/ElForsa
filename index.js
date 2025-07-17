@@ -187,79 +187,95 @@ client.on('messageCreate', async message => {
       // Uyarı komutu - Başarıyla çalışacak ve mute/ban işlemleri içerir
 
       if (command === 'uyari') {
-        // Sadece "Yönetim" rolüne sahip olanlar komutu kullanabilir
-        if (!message.member.roles.cache.some(r => r.name === 'Yönetim')) {
-          return message.reply('Bu komutu kullanmak için Yönetim rolüne sahip olmalısın.');
-        }
+        if (!message.member.roles.cache.some(r => r.name === 'Yönetim')) 
+          return message.reply('Bu komutu kullanmak için Yönetim rolün olmalı.');
 
         const member = message.mentions.members.first();
-        if (!member) return message.reply('Lütfen bir kullanıcı etiketle.');
+        if (!member) return message.reply('Lütfen bir kullanıcıyı etiketle.');
 
-        const reason = args.slice(1).join(' ') || 'Sebep belirtilmedi';
+        const reason = args.slice(1).join(' ');
+        if (!reason) return message.reply('Lütfen uyarı sebebini yaz.');
 
-        // Uyarı rollerini ve muted rolünü bul
-        const roles = {
-          u1: message.guild.roles.cache.find(r => r.name === 'U1'),
-          u2: message.guild.roles.cache.find(r => r.name === 'U2'),
-          u3: message.guild.roles.cache.find(r => r.name === 'U3'),
-          muted: message.guild.roles.cache.find(r => r.name === 'Muted')
-        };
+        // Kullanıcıya verilecek roller
+        const u1Role = message.guild.roles.cache.find(r => r.name === 'U1');
+        const u2Role = message.guild.roles.cache.find(r => r.name === 'U2');
+        const u3Role = message.guild.roles.cache.find(r => r.name === 'U3');
+        const mutedRole = message.guild.roles.cache.find(r => r.name === 'Muted');
 
-        if (!roles.u1 || !roles.u2 || !roles.u3 || !roles.muted) {
-          return message.channel.send('U1, U2, U3 veya Muted rolü sunucuda eksik.');
-        }
+        if (!u1Role || !u2Role || !u3Role) 
+          return message.channel.send('Uyarı rolleri (U1, U2, U3) sunucuda eksik!');
 
-        // Uyarı sayısını hafızada tutalım
-        if (!client.warnCounts) client.warnCounts = new Map();
-        let count = client.warnCounts.get(member.id) || 0;
-        count += 1;
-        client.warnCounts.set(member.id, count);
+        if (!mutedRole) 
+          return message.channel.send('Muted rolü sunucuda bulunamadı!');
 
-        // DM mesajı içeriği
+        // Kullanıcının mevcut uyarı sayısını al (basit şekilde, DB yoksa Map veya JSON ile saklanmalı)
+        // Burada örnek olarak hafızada tutuyoruz:
+        if (!client.warningMap) client.warningMap = new Map();
+        let warnings = client.warningMap.get(member.id) || 0;
+        warnings++;
+
+        // Yeni uyarı sayısını kaydet
+        client.warningMap.set(member.id, warnings);
+
+        // Uyarı işlemleri
         let dmMessage = '';
         try {
-          if (count === 1) {
-            await member.roles.add(roles.u1);
-            dmMessage = `⚠️ **1. Uyarı** aldın.\nSebep: ${reason}`;
-            message.channel.send(`${member} kişisine 1. uyarı verildi.`);
-          } else if (count === 2) {
-            await member.roles.remove(roles.u1).catch(() => {});
-            await member.roles.add(roles.u2);
-            await member.roles.add(roles.muted);
-            dmMessage = `⚠️ **2. Uyarı** aldın ve 1 saat susturuldun.\nSebep: ${reason}`;
-            message.channel.send(`${member} kişisine 2. uyarı verildi. 1 saat mute.`);
-            setTimeout(() => {
-              member.roles.remove(roles.muted).catch(() => {});
-            }, 60 * 60 * 1000); // 1 saat
-          } else if (count === 3) {
-            await member.roles.remove(roles.u2).catch(() => {});
-            await member.roles.add(roles.u3);
-            await member.roles.add(roles.muted);
-            dmMessage = `⚠️ **3. Uyarı** aldın ve 1 gün susturuldun.\nSebep: ${reason}`;
-            message.channel.send(`${member} kişisine 3. uyarı verildi. 1 gün mute.`);
-            setTimeout(() => {
-              member.roles.remove(roles.muted).catch(() => {});
-            }, 24 * 60 * 60 * 1000); // 1 gün
-          } else {
-            dmMessage = `⛔ **4. Uyarı** aldın. Tüm sunuculardan yasaklandın.\nSebep: ${reason}`;
-            await member.send(dmMessage).catch(() => {});
-            message.channel.send(`${member} 4. uyarısını aldı ve sunucudan yasaklandı.`);
-            await member.ban({ reason: `4. uyarı: ${reason}` });
-            client.warnCounts.delete(member.id); // sıfırla
-            return;
+          switch (warnings) {
+            case 1:
+              await member.roles.add(u1Role);
+              dmMessage = `Sunucuda 1. uyarını aldın.\nSebep: ${reason}`;
+              message.channel.send(`${member} 1. uyarı aldı.`);
+              break;
+
+            case 2:
+              await member.roles.remove(u1Role).catch(() => {});
+              await member.roles.add(u2Role);
+              if (mutedRole) await member.roles.add(mutedRole);
+              dmMessage = `Sunucuda 2. uyarını aldın ve 1 saat mutelendin.\nSebep: ${reason}`;
+              message.channel.send(`${member} 2. uyarı aldı ve 1 saat mute verildi.`);
+              // 1 saat sonra mute kaldır
+              setTimeout(async () => {
+                try {
+                  await member.roles.remove(mutedRole);
+                } catch {}
+              }, 3600000);
+              break;
+
+            case 3:
+              await member.roles.remove(u2Role).catch(() => {});
+              await member.roles.add(u3Role);
+              if (mutedRole) await member.roles.add(mutedRole);
+              dmMessage = `Sunucuda 3. uyarını aldın ve 1 gün mutelendin.\nSebep: ${reason}`;
+              message.channel.send(`${member} 3. uyarı aldı ve 1 gün mute verildi.`);
+              // 1 gün sonra mute kaldır
+              setTimeout(async () => {
+                try {
+                  await member.roles.remove(mutedRole);
+                } catch {}
+              }, 86400000);
+              break;
+
+            default:
+              // 4 veya daha fazla uyarıda sunucudan banla
+              dmMessage = `Sunucudan yasaklandın! Sebep: ${reason}`;
+              message.channel.send(`${member} 4 veya daha fazla uyarı aldı, sunucudan yasaklandı.`);
+              await member.ban({ reason: `4 veya daha fazla uyarı: ${reason}` });
+              // Hafızadan temizle
+              client.warningMap.delete(member.id);
+              break;
           }
 
-          // DM gönder
-          await member.send(dmMessage).catch(() => {
-            message.channel.send(`${member} kişisine DM gönderilemedi.`);
-          });
-
-        } catch (err) {
-          console.error('Uyarı komutu hatası:', err);
-          message.channel.send('❌ Uyarı verirken bir hata oluştu.');
+          // Kullanıcıya DM gönder
+          try {
+            await member.send(dmMessage);
+          } catch {
+            message.channel.send('Kullanıcı DM kapalı veya gönderilemiyor.');
+          }
+        } catch (error) {
+          console.error('Uyarı komutu hatası:', error);
+          message.channel.send('Uyarı verilirken bir hata oluştu.');
         }
       }
-
     case "devriye":
       if (!isUserYonetim) return message.reply("Bu komutu sadece Yönetim kullanabilir.");
       {
@@ -372,25 +388,28 @@ client.on('messageCreate', async message => {
             break;
 
           case "rolver":
-            if (command === 'rolver') {
-              if (!message.member.roles.cache.some(r => r.name === 'Yönetim')) return message.reply('Bu komutu kullanmak için Yönetim rolün olmalı.');
+            if (!isUserYonetim) return message.reply("Bu komutu sadece Yönetim kullanabilir.");
+            {
+              const hedef = message.mentions.members.first();
+              if (!hedef) return message.reply("Bir kullanıcıyı etiketlemelisin.");
+              const rolAdi = args.slice(1).join(" ");
+              if (!rolAdi) return message.reply("Verilecek rol tam adını yazmalısın.");
 
-              const member = message.mentions.members.first();
-              if (!member) return message.reply('Lütfen bir kullanıcıyı etiketle.');
+              const rol = message.guild.roles.cache.find(r => r.name === rolAdi);
+              if (!rol) return message.reply("Rol sunucuda bulunamadı.");
 
-              // Komutda ikinci mention rol olmalı
-              const role = message.mentions.roles.first();
-              if (!role) return message.reply('Lütfen bir rolü etiketle.');
+              if (hedef.roles.cache.size >= 5) return message.reply("Kullanıcıya en fazla 5 rol verilebilir.");
 
-              // Rolü ver
+              if (hedef.roles.cache.has(rol.id)) return message.reply("Kullanıcıda zaten bu rol var.");
+
               try {
-                await member.roles.add(role);
-                message.channel.send(`${member} kullanıcısına ${role} rolü verildi.`);
-              } catch (err) {
-                console.error(err);
-                message.channel.send('Rol verilirken hata oluştu. Botun yetkilerini ve rol sıralamasını kontrol et.');
+                await hedef.roles.add(rol);
+                message.channel.send(`${hedef.user.tag} kullanıcısına '${rolAdi}' rolü verildi.`);
+              } catch {
+                message.reply("Rol verme işlemi başarısız oldu.");
               }
             }
+            break;
 
           case "sicil":
             if (!isUserYonetim) return message.reply("Bu komutu sadece Yönetim kullanabilir.");
