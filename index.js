@@ -425,29 +425,36 @@ client.on('messageCreate', async message => {
           message.reply("Bir hata oluştu. Kullanıcının Roblox adını ve rütbe adını kontrol et.");
         }
       }
-          case "rolver":
-            if (!isUserYonetim) return message.reply("Bu komutu sadece Yönetim kullanabilir.");
-            {
-              const hedef = message.mentions.members.first();
-              if (!hedef) return message.reply("Bir kullanıcıyı etiketlemelisin.");
-              const rolAdi = args.slice(1).join(" ");
-              if (!rolAdi) return message.reply("Verilecek rol tam adını yazmalısın.");
-
-              const rol = message.guild.roles.cache.find(r => r.name === rolAdi);
-              if (!rol) return message.reply("Rol sunucuda bulunamadı.");
-
-              if (hedef.roles.cache.size >= 5) return message.reply("Kullanıcıya en fazla 5 rol verilebilir.");
-
-              if (hedef.roles.cache.has(rol.id)) return message.reply("Kullanıcıda zaten bu rol var.");
-
-              try {
-                await hedef.roles.add(rol);
-                message.channel.send(`${hedef.user.tag} kullanıcısına '${rolAdi}' rolü verildi.`);
-              } catch {
-                message.reply("Rol verme işlemi başarısız oldu.");
-              }
+          if (command === 'rolver') {
+            if (!message.member.roles.cache.some(r => r.name === 'Yönetim')) {
+              return message.reply("Bu komutu kullanmak için `Yönetim` rolüne sahip olmalısın.");
             }
-            break;
+
+            const member = message.mentions.members.first();
+            const roleMention = message.mentions.roles.first();
+
+            if (!member || !roleMention) {
+              return message.reply("Kullanım: `!rolver @kullanıcı @rol` şeklinde yaz.");
+            }
+
+            // Maksimum 5 rol sınırı
+            if (member.roles.cache.size >= 5) {
+              return message.reply("❌ Bu kullanıcıya zaten 5 veya daha fazla rol verilmiş.");
+            }
+
+            // Bot rolü verilecek rolden yüksek mi kontrolü (gerekiyorsa)
+            if (message.guild.me.roles.highest.position <= roleMention.position) {
+              return message.reply("❌ Bu rol, botun rolünden yüksek olduğu için verilemiyor.");
+            }
+
+            try {
+              await member.roles.add(roleMention);
+              message.channel.send(`✅ ${member} kişisine ${roleMention.name} rolü verildi.`);
+            } catch (err) {
+              console.error("Rol verme hatası:", err);
+              message.channel.send("❌ Rol verilemedi. Yetkileri veya hiyerarşiyi kontrol et.");
+            }
+          }
 
           case "sicil":
             if (!isUserYonetim) return message.reply("Bu komutu sadece Yönetim kullanabilir.");
@@ -469,62 +476,91 @@ client.on('messageCreate', async message => {
             break;
 
           case "komutlar":
-            {
-              const sayfa1 = new EmbedBuilder()
-                .setTitle("Komutlar - Sayfa 1")
-                .setDescription(
-                  "`!format` - Başvuru formatını gösterir.\n" +
-                  "`!grup` - Roblox grup linklerini atar.\n" +
-                  "`!tamyasakla @kullanıcı (sebep)` - Kullanıcıyı banlar.\n" +
-                  "`!mute @kullanıcı (sebep) (saat:dakika)` - Kullanıcıyı muteler.\n" +
-                  "`!unmute @kullanıcı` - Mute kaldırır."
-                )
-                .setFooter({ text: "Sayfa 1 / 2" });
+            if (command === 'komutlar') {
+              const sayfalar = [
+                new Discord.MessageEmbed()
+                  .setTitle("📘 ElForsa Bot Komutları — Sayfa 1")
+                  .setColor("DarkBlue")
+                  .setDescription(`
+            **🔰 Genel Komutlar (Tüm Kullanıcılar):**
+            \`!format\` → Başvuru formatını gösterir  
+            \`!grup\` → Roblox grup linkini atar  
+            \`sa\` → Selam verene cevap verir  
+            \`!çekiliş (saat:dakika) (ödül) (kazanan sayısı)\` → Çekiliş başlatır  
+            \`!sicil @kişi\` → Kişinin sicilini gösterir  
+            `),
 
-              const sayfa2 = new EmbedBuilder()
-                .setTitle("Komutlar - Sayfa 2")
-                .setDescription(
-                  "`!uyari @kullanıcı (sebep)` - Uyarı verir ve cezalar uygular.\n" +
-                  "`!devriye aç/kapa` - Küfür/argo kontrolünü açar/kapatır.\n" +
-                  "`!cekilis (saat:dakika) (ödül) (kazanan sayısı)` - Çekiliş başlatır.\n" +
-                  "`!kanalikilitle` - Kanalı kilitler.\n" +
-                  "`!kanaliac` - Kanalı açar.\n" +
-                  "`!rütbever @kullanıcı (rol)` - Roblox grubunda rütbe verir.\n" +
-                  "`!rolver @kullanıcı (rol)` - Discord rolü verir.\n" +
-                  "`!sicil @kullanıcı` - Kullanıcının uyarı sicilini gösterir."
-                )
-                .setFooter({ text: "Sayfa 2 / 2" });
+                new Discord.MessageEmbed()
+                  .setTitle("📕 Yönetim Komutları — Sayfa 2")
+                  .setColor("DarkRed")
+                  .setDescription(`
+            **👮 Moderasyon & Yönetim:**
+            \`!mute @kişi (sebep) (süre)\` → Kişiyi susturur  
+            \`!unmute @kişi\` → Mute kaldırır  
+            \`!uyari @kişi (sebep)\` → Uyarı verir (otomatik ceza sistemi)  
+            \`!tamyasakla @kişi (sebep)\` → Tüm sunuculardan yasaklar  
+            \`!devriye aç/kapa\` → Küfür, argo, +18 denetimi  
+            \`!kanalikilitle\` / \`!kanaliac\` → Kanalı yazışmaya kapatır/açar  
+            `),
 
-              const embedler = [sayfa1, sayfa2];
+                new Discord.MessageEmbed()
+                  .setTitle("📗 Yönetim Komutları — Sayfa 3")
+                  .setColor("DarkGreen")
+                  .setDescription(`
+            **🛠️ Gelişmiş Komutlar:**
+            \`!rolver @kişi @rol\` → Kişiye rol verir (max 5 rol)  
+            \`!rütbever @kişi RobloxAdı RÜTBE\` → Roblox grupta rütbe verir  
+            \`!komutlar\` → Komut listesini sayfa sayfa gösterir  
+            `),
+
+                new Discord.MessageEmbed()
+                  .setTitle("🚧 Yakında Eklenecek Özellikler — Sayfa 4")
+                  .setColor("Grey")
+                  .setDescription(`
+            **🧪 Geliştiriliyor:**
+            • \`!rolal @kişi @rol\` → Rolü alır  
+            • \`!siciltemizle @kişi\` → Sicil temizleme  
+            • Gelişmiş ceza geçmişi paneli  
+            • Roblox kullanıcı doğrulama sistemi  
+            • Otomatik şikayet sistemi  
+            `)
+              ];
+
               let sayfa = 0;
 
-              const mesaj = await message.channel.send({ embeds: [embedler[sayfa]] });
-              await mesaj.react("⬅️");
-              await mesaj.react("➡️");
+              const row = new Discord.MessageActionRow().addComponents(
+                new Discord.MessageButton()
+                  .setCustomId('geri')
+                  .setLabel('⏮️')
+                  .setStyle('PRIMARY'),
+                new Discord.MessageButton()
+                  .setCustomId('ileri')
+                  .setLabel('⏭️')
+                  .setStyle('PRIMARY')
+              );
 
-              const collector = mesaj.createReactionCollector({
-                filter: (reaction, user) => ["⬅️", "➡️"].includes(reaction.emoji.name) && user.id === message.author.id,
-                time: 60000
+              const msg = await message.channel.send({
+                embeds: [sayfalar[sayfa]],
+                components: [row]
               });
 
-              collector.on('collect', reaction => {
-                reaction.users.remove(message.author.id).catch(() => {});
-                if (reaction.emoji.name === "➡️") {
-                  if (sayfa < embedler.length - 1) sayfa++;
-                  else sayfa = 0;
-                } else if (reaction.emoji.name === "⬅️") {
-                  if (sayfa > 0) sayfa--;
-                  else sayfa = embedler.length - 1;
-                }
-                mesaj.edit({ embeds: [embedler[sayfa]] });
+              const filter = (i) => i.user.id === message.author.id;
+              const collector = msg.createMessageComponentCollector({ filter, time: 60000 });
+
+              collector.on('collect', async (i) => {
+                if (i.customId === 'geri') sayfa = (sayfalar.length + sayfa - 1) % sayfalar.length;
+                else if (i.customId === 'ileri') sayfa = (sayfa + 1) % sayfalar.length;
+
+                await i.update({
+                  embeds: [sayfalar[sayfa]],
+                  components: [row]
+                });
               });
 
               collector.on('end', () => {
-                mesaj.reactions.removeAll().catch(() => {});
+                msg.edit({ components: [] });
               });
             }
-            break;
-
           default:
             message.reply("Bilinmeyen komut. `!komutlar` yazarak listeyi görebilirsin.");
         }
