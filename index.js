@@ -440,59 +440,35 @@ if (command === "rütbelistesi") {
 
           case "komutlar":
             {
-              const sayfa1 = new EmbedBuilder()
-                .setTitle("Komutlar - Sayfa 1")
-                .setDescription(
-                  "`!format` - Başvuru formatını gösterir.\n" +
-                  "`!grup` - Roblox grup linklerini atar.\n" +
-                  "`!tamyasakla @kullanıcı (sebep)` - Kullanıcıyı banlar.\n" +
-                  "`!mute @kullanıcı (sebep) (saat:dakika)` - Kullanıcıyı muteler.\n" +
-                  "`!unmute @kullanıcı` - Mute kaldırır."
-                )
-                .setFooter({ text: "Sayfa 1 / 2" });
+              if (command === 'komutlar') {
+  const embed = new Discord.MessageEmbed()
+    .setTitle('📜 ElForsa Bot Komutları')
+    .setColor('BLUE')
+    .setDescription(`
+**Genel Komutlar:**
+\`!format\` — Başvuru formatını gösterir  
+\`!grup\` — Roblox grup linkini atar  
+\`sa\` — Selam verene cevap verir  
+\`!çekiliş (saat:dakika) (ödül) (kazanan sayısı)\` — Çekiliş başlatır  
+\`!sicil @kişi\` — Sicil gösterir  
 
-              const sayfa2 = new EmbedBuilder()
-                .setTitle("Komutlar - Sayfa 2")
-                .setDescription(
-                  "`!uyari @kullanıcı (sebep)` - Uyarı verir ve cezalar uygular.\n" +
-                  "`!devriye aç/kapa` - Küfür/argo kontrolünü açar/kapatır.\n" +
-                  "`!cekilis (saat:dakika) (ödül) (kazanan sayısı)` - Çekiliş başlatır.\n" +
-                  "`!kanalikilitle` - Kanalı kilitler.\n" +
-                  "`!kanaliac` - Kanalı açar.\n" +
-                  "`!rütbever @kullanıcı (rol)` - Roblox grubunda rütbe verir.\n" +
-                  "`!rolver @kullanıcı (rol)` - Discord rolü verir.\n" +
-                  "`!sicil @kullanıcı` - Kullanıcının uyarı sicilini gösterir."
-                )
-                .setFooter({ text: "Sayfa 2 / 2" });
+**Yönetim Komutları (Yönetim rolü):**
+\`!mute @kişi (sebep) (süre)\` — Kişiyi susturur  
+\`!unmute @kişi\` — Susturmayı kaldırır  
+\`!uyari @kişi (sebep)\` — Uyarı verir  
+\`!tamyasakla @kişi (sebep)\` — Tüm sunuculardan yasaklar  
+\`!devriye aç/kapa\` — Küfür/argo +18 kontrolü  
+\`!kanalikilitle\` — Kanalı kilitler  
+\`!kanaliac\` — Kanalı açar  
+\`!rolver @kişi @rol\` — Rol verir  
+\`!rütbever @kişi RobloxAdı Rütbe\` — Roblox grubunda rütbe verir  
 
-              const embedler = [sayfa1, sayfa2];
-              let sayfa = 0;
+**Yeni Komut:**
+\`!rütbelistesi\` — Roblox grubundaki tüm rütbeleri listeler  
+  `);
 
-              const mesaj = await message.channel.send({ embeds: [embedler[sayfa]] });
-              await mesaj.react("⬅️");
-              await mesaj.react("➡️");
-
-              const collector = mesaj.createReactionCollector({
-                filter: (reaction, user) => ["⬅️", "➡️"].includes(reaction.emoji.name) && user.id === message.author.id,
-                time: 60000
-              });
-
-              collector.on('collect', reaction => {
-                reaction.users.remove(message.author.id).catch(() => {});
-                if (reaction.emoji.name === "➡️") {
-                  if (sayfa < embedler.length - 1) sayfa++;
-                  else sayfa = 0;
-                } else if (reaction.emoji.name === "⬅️") {
-                  if (sayfa > 0) sayfa--;
-                  else sayfa = embedler.length - 1;
-                }
-                mesaj.edit({ embeds: [embedler[sayfa]] });
-              });
-
-              collector.on('end', () => {
-                mesaj.reactions.removeAll().catch(() => {});
-              });
-            }
+  message.channel.send({ embeds: [embed] });
+}
             break;
 
           default:
