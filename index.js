@@ -343,21 +343,18 @@ client.on('messageCreate', async message => {
       break;
 
       case "rütbever":
-            await noblox.setRank(Number(process.env.GROUP_ID), userId, desiredRank.rank);
+            if (!isUserYonetim) return message.reply("Bu komutu sadece Yönetim kullanabilir.");
+            {
+              const hedef = message.mentions.members.first();
+              if (!hedef) return message.reply("Bir kullanıcıyı etiketlemelisin.");
+              const rolAdi = args.slice(1).join(" ");
+              if (!rolAdi) return message.reply("Verilecek rol tam adını yazmalısın.");
 
-          message.channel.send(`✅ ${member} adlı kişiye **${robloxUsername}** ismiyle **${desiredRank.name}** rütbesi verildi.`);
-
-          try {
-            await member.send(`📢 Roblox grubunda **${desiredRank.name}** rütbesine yükseltildin.`);
-          } catch {
-            message.channel.send("📭 Kullanıcının DM'leri kapalı olabilir.");
-          }
-
-        } catch (err) {
-          console.error("❌ Rütbe verme hatası:", err);
-          message.reply("Bir hata oluştu. Kullanıcının Roblox adını ve rütbe adını kontrol et.");
-        }
-      }
+              // Burada Roblox API veya cookie ile rütbe verme işlemi yapılmalı.
+              // Roblox API entegrasyonu, özel token ve cookie ile yapılır. 
+              // Bu örnekte sadece mesaj olarak bildiriyoruz.
+              message.channel.send(`${hedef.user.tag} kullanıcısına Roblox grubunda '${rolAdi}' rütbesi verildi (simüle).`);
+            }
             break;
 
           case "rolver":
