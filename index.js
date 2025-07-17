@@ -29,7 +29,7 @@ let devriyeAktif = false;
 
 const yasakliKelimeler = [
   "aq", "amk", "aw", "awk", "siktir", "sg", "oc", "oç", "anan",
-  "anani sikim", "sikim", "pic", "la", "lan"
+  "anani sikim", "sikim", "pic", "la", "lan", "orospu", "orusou", "oruspu", "orosou"
 ];
 
 // Yardımcı fonksiyonlar
@@ -145,6 +145,44 @@ client.on('messageCreate', async message => {
         }
       }
       break;
+      const noblox = require('noblox.js');
+
+if (command === "rütbelistesi") {
+  const groupId = process.env.GROUP_ID;
+  const robloxCookie = process.env.ROBLOX_COOKIE;
+
+  if (!groupId || !robloxCookie) {
+    return message.reply("❌ .env dosyanda `GROUP_ID` veya `ROBLOX_COOKIE` eksik!");
+  }
+
+  try {
+    if (!client.robloxLoggedIn) {
+      await noblox.setCookie(robloxCookie);
+      client.robloxLoggedIn = true;
+      console.log("✅ Roblox oturumu başlatıldı.");
+    }
+
+    const roles = await noblox.getRolesInGroup(Number(groupId));
+    const listed = roles
+      .filter(r => r.rank > 0) // misafir rolünü atla
+      .map(r => `• **${r.name}** — Rank ID: \`${r.rank}\``)
+      .join("\n");
+
+    const { EmbedBuilder } = require("discord.js");
+
+    const embed = new EmbedBuilder()
+      .setTitle("📋 Roblox Grup Rütbeleri")
+      .setDescription(listed)
+      .setColor("Blue")
+      .setFooter({ text: `Grup ID: ${groupId}` });
+
+    message.channel.send({ embeds: [embed] });
+
+  } catch (err) {
+    console.error("Rütbe listesi hatası:", err);
+    message.reply("🚫 Rütbe listesi alınamadı. Cookie ve Group ID'yi kontrol et.");
+  }
+}
 
     case "mute":
       if (!isUserYonetim) return message.reply("Bu komutu sadece Yönetim kullanabilir.");
