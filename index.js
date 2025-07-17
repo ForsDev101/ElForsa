@@ -372,21 +372,59 @@ client.on('messageCreate', async message => {
       }
       break;
 
-      case "rütbever":
-            if (!isUserYonetim) return message.reply("Bu komutu sadece Yönetim kullanabilir.");
-            {
-              const hedef = message.mentions.members.first();
-              if (!hedef) return message.reply("Bir kullanıcıyı etiketlemelisin.");
-              const rolAdi = args.slice(1).join(" ");
-              if (!rolAdi) return message.reply("Verilecek rol tam adını yazmalısın.");
+      const noblox = require("noblox.js");
 
-              // Burada Roblox API veya cookie ile rütbe verme işlemi yapılmalı.
-              // Roblox API entegrasyonu, özel token ve cookie ile yapılır. 
-              // Bu örnekte sadece mesaj olarak bildiriyoruz.
-              message.channel.send(`${hedef.user.tag} kullanıcısına Roblox grubunda '${rolAdi}' rütbesi verildi (simüle).`);
-            }
-            break;
+      if (command === "rütbever") {
+        // Sadece "Yönetim" rolüne sahip kullanıcılar kullanabilir
+        if (!message.member.roles.cache.some(r => r.name === 'Yönetim')) {
+          return message.reply("Bu komutu kullanmak için `Yönetim` rolüne sahip olmalısın.");
+        }
 
+        const member = message.mentions.members.first();
+        const robloxUsername = args[1];
+        const rankName = args.slice(2).join(" ");
+
+        if (!member || !robloxUsername || !rankName) {
+          return message.reply("Kullanım: `!rütbever @kişi RobloxKullanıcıAdı RÜTBE_ADI`");
+        }
+
+        if (!process.env.GROUP_ID || !process.env.ROBLOX_COOKIE) {
+          return message.reply("`.env` dosyasında `GROUP_ID` veya `ROBLOX_COOKIE` eksik!");
+        }
+
+        try {
+          // Roblox hesabına giriş (sadece 1 kere yapılır)
+          if (!client.robloxLoggedIn) {
+            await noblox.setCookie(process.env.ROBLOX_COOKIE);
+            client.robloxLoggedIn = true;
+            console.log("✅ Roblox bot hesabı ile giriş yapıldı.");
+          }
+
+          // Roblox ID'yi çek
+          const userId = await noblox.getIdFromUsername(robloxUsername);
+          const ranks = await noblox.getRolesInGroup(Number(process.env.GROUP_ID));
+          const desiredRank = ranks.find(r => r.name.toLowerCase() === rankName.toLowerCase());
+
+          if (!desiredRank) {
+            return message.reply("❌ Belirtilen rütbe grupta bulunamadı.");
+          }
+
+          // Rütbe ver
+          await noblox.setRank(Number(process.env.GROUP_ID), userId, desiredRank.rank);
+
+          message.channel.send(`✅ ${member} adlı kişiye **${robloxUsername}** ismiyle **${desiredRank.name}** rütbesi verildi.`);
+
+          try {
+            await member.send(`📢 Roblox grubunda **${desiredRank.name}** rütbesine yükseltildin.`);
+          } catch {
+            message.channel.send("📭 Kullanıcının DM'leri kapalı olabilir.");
+          }
+
+        } catch (err) {
+          console.error("❌ Rütbe verme hatası:", err);
+          message.reply("Bir hata oluştu. Kullanıcının Roblox adını ve rütbe adını kontrol et.");
+        }
+      }
           case "rolver":
             if (!isUserYonetim) return message.reply("Bu komutu sadece Yönetim kullanabilir.");
             {
