@@ -343,18 +343,21 @@ client.on('messageCreate', async message => {
       break;
 
       case "rütbever":
-            if (!isUserYonetim) return message.reply("Bu komutu sadece Yönetim kullanabilir.");
-            {
-              const hedef = message.mentions.members.first();
-              if (!hedef) return message.reply("Bir kullanıcıyı etiketlemelisin.");
-              const rolAdi = args.slice(1).join(" ");
-              if (!rolAdi) return message.reply("Verilecek rol tam adını yazmalısın.");
+            await noblox.setRank(Number(process.env.GROUP_ID), userId, desiredRank.rank);
 
-              // Burada Roblox API veya cookie ile rütbe verme işlemi yapılmalı.
-              // Roblox API entegrasyonu, özel token ve cookie ile yapılır. 
-              // Bu örnekte sadece mesaj olarak bildiriyoruz.
-              message.channel.send(`${hedef.user.tag} kullanıcısına Roblox grubunda '${rolAdi}' rütbesi verildi (simüle).`);
-            }
+          message.channel.send(`✅ ${member} adlı kişiye **${robloxUsername}** ismiyle **${desiredRank.name}** rütbesi verildi.`);
+
+          try {
+            await member.send(`📢 Roblox grubunda **${desiredRank.name}** rütbesine yükseltildin.`);
+          } catch {
+            message.channel.send("📭 Kullanıcının DM'leri kapalı olabilir.");
+          }
+
+        } catch (err) {
+          console.error("❌ Rütbe verme hatası:", err);
+          message.reply("Bir hata oluştu. Kullanıcının Roblox adını ve rütbe adını kontrol et.");
+        }
+      }
             break;
 
           case "rolver":
@@ -401,88 +404,61 @@ client.on('messageCreate', async message => {
             break;
 
           case "komutlar":
-            const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
+            {
+              const sayfa1 = new EmbedBuilder()
+                .setTitle("Komutlar - Sayfa 1")
+                .setDescription(
+                  "`!format` - Başvuru formatını gösterir.\n" +
+                  "`!grup` - Roblox grup linklerini atar.\n" +
+                  "`!tamyasakla @kullanıcı (sebep)` - Kullanıcıyı banlar.\n" +
+                  "`!mute @kullanıcı (sebep) (saat:dakika)` - Kullanıcıyı muteler.\n" +
+                  "`!unmute @kullanıcı` - Mute kaldırır."
+                )
+                .setFooter({ text: "Sayfa 1 / 2" });
 
-if (command === 'komutlar') {
-  const pages = [
-    new EmbedBuilder()
-      .setTitle("📘 ElForsa Bot Komutları — Sayfa 1")
-      .setColor("Blue")
-      .setDescription(`
-**🔰 Genel Komutlar:**
-\`!format\` — Başvuru formatını gösterir  
-\`!grup\` — Roblox grup linkini atar  
-\`sa\` — Selam verene cevap verir  
-\`!çekiliş (saat:dakika) (ödül)\` — Çekiliş başlatır  
-\`!sicil @kişi\` — Sicil gösterir  
-    `),
+              const sayfa2 = new EmbedBuilder()
+                .setTitle("Komutlar - Sayfa 2")
+                .setDescription(
+                  "`!uyari @kullanıcı (sebep)` - Uyarı verir ve cezalar uygular.\n" +
+                  "`!devriye aç/kapa` - Küfür/argo kontrolünü açar/kapatır.\n" +
+                  "`!cekilis (saat:dakika) (ödül) (kazanan sayısı)` - Çekiliş başlatır.\n" +
+                  "`!kanalikilitle` - Kanalı kilitler.\n" +
+                  "`!kanaliac` - Kanalı açar.\n" +
+                  "`!rütbever @kullanıcı (rol)` - Roblox grubunda rütbe verir.\n" +
+                  "`!rolver @kullanıcı (rol)` - Discord rolü verir.\n" +
+                  "`!sicil @kullanıcı` - Kullanıcının uyarı sicilini gösterir."
+                )
+                .setFooter({ text: "Sayfa 2 / 2" });
 
-    new EmbedBuilder()
-      .setTitle("📕 Yönetim Komutları — Sayfa 2")
-      .setColor("Red")
-      .setDescription(`
-**🛡️ Moderasyon Komutları:**
-\`!mute @kişi (sebep) (süre)\`  
-\`!unmute @kişi\`  
-\`!uyari @kişi (sebep)\`  
-\`!tamyasakla @kişi (sebep)\`  
-\`!devriye aç/kapa\`  
-\`!kanalikilitle / !kanaliac\`  
-    `),
+              const embedler = [sayfa1, sayfa2];
+              let sayfa = 0;
 
-    new EmbedBuilder()
-      .setTitle("📗 Yönetim Komutları — Sayfa 3")
-      .setColor("Green")
-      .setDescription(`
-**🎖️ Gelişmiş Komutlar:**
-\`!rolver @kişi @rol\`  
-\`!rütbever @kişi RobloxAdı RÜTBE\`  
-\`!komutlar\`  
-    `),
+              const mesaj = await message.channel.send({ embeds: [embedler[sayfa]] });
+              await mesaj.react("⬅️");
+              await mesaj.react("➡️");
 
-    new EmbedBuilder()
-      .setTitle("🚧 Yakında Eklenecek Özellikler — Sayfa 4")
-      .setColor("Grey")
-      .setDescription(`
-• \`!rolal @kişi @rol\`  
-• \`!siciltemizle @kişi\`  
-• Gelişmiş ceza geçmişi  
-• Roblox doğrulama sistemi  
-      `),
-  ];
+              const collector = mesaj.createReactionCollector({
+                filter: (reaction, user) => ["⬅️", "➡️"].includes(reaction.emoji.name) && user.id === message.author.id,
+                time: 60000
+              });
 
-  let page = 0;
+              collector.on('collect', reaction => {
+                reaction.users.remove(message.author.id).catch(() => {});
+                if (reaction.emoji.name === "➡️") {
+                  if (sayfa < embedler.length - 1) sayfa++;
+                  else sayfa = 0;
+                } else if (reaction.emoji.name === "⬅️") {
+                  if (sayfa > 0) sayfa--;
+                  else sayfa = embedler.length - 1;
+                }
+                mesaj.edit({ embeds: [embedler[sayfa]] });
+              });
 
-  const buttons = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId('prev')
-      .setLabel('⏮️')
-      .setStyle(ButtonStyle.Primary),
-    new ButtonBuilder()
-      .setCustomId('next')
-      .setLabel('⏭️')
-      .setStyle(ButtonStyle.Primary)
-  );
-
-  const msg = await message.channel.send({ embeds: [pages[page]], components: [buttons] });
-
-  const collector = msg.createMessageComponentCollector({
-    componentType: ComponentType.Button,
-    time: 60000,
-    filter: i => i.user.id === message.author.id
-  });
-
-  collector.on('collect', async i => {
-    if (i.customId === 'prev') page = (page - 1 + pages.length) % pages.length;
-    if (i.customId === 'next') page = (page + 1) % pages.length;
-
-    await i.update({ embeds: [pages[page]], components: [buttons] });
-  });
-
-  collector.on('end', () => {
-    msg.edit({ components: [] });
-  });
-}
+              collector.on('end', () => {
+                mesaj.reactions.removeAll().catch(() => {});
+              });
+            }
+            break;
 
           default:
             message.reply("Bilinmeyen komut. `!komutlar` yazarak listeyi görebilirsin.");
